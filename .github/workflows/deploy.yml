@@ -62,6 +62,22 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
+          echo "=== Checking Docker Compose availability ==="
+          
+          # Проверяем доступные команды
+          if command -v docker compose &> /dev/null; then
+            echo "Using 'docker compose' (plugin)"
+            DOCKER_COMPOSE_CMD="docker compose"
+          elif command -v docker-compose &> /dev/null; then
+            echo "Using 'docker-compose' (standalone)"
+            DOCKER_COMPOSE_CMD="docker-compose"
+          else
+            echo "Installing docker-compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            DOCKER_COMPOSE_CMD="docker-compose"
+          fi
+          
           echo "=== Starting Docker Compose deployment ==="
           
           cd /home/${{ env.SSH_USERNAME }}/website-example
@@ -81,19 +97,19 @@ jobs:
           ls -la images/ || echo "No images directory"
           
           echo "=== Deploying with Docker Compose ==="
-          docker-compose down
-          docker-compose up -d
+          $DOCKER_COMPOSE_CMD down
+          $DOCKER_COMPOSE_CMD up -d
           
           echo "=== Waiting for containers to start ==="
           sleep 10
           
           echo "=== Diagnostic information ==="
           echo "1. Container status:"
-          docker-compose ps
+          $DOCKER_COMPOSE_CMD ps
           echo ""
           
           echo "2. Container logs:"
-          docker-compose logs --tail=10
+          $DOCKER_COMPOSE_CMD logs --tail=10
           echo ""
           
           echo "3. Testing application..."
